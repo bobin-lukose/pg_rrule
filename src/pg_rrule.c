@@ -76,7 +76,7 @@ Datum pg_rrule_get_occurrences_dtstart_tz(PG_FUNCTION_ARGS) {
     }
 
     if (ical_tz == NULL) {
-        elog(WARNING, "Can't get timezone from current session! Fallback to UTC.");
+        elog(WARNING, "Can't get timezone from current session! Fallback to UTC.1");
         ical_tz = icaltimezone_get_utc_timezone();
     }
 
@@ -99,7 +99,7 @@ Datum pg_rrule_get_occurrences_dtstart_until_tz(PG_FUNCTION_ARGS) {
     }
 
     if (ical_tz == NULL) {
-        elog(WARNING, "Can't get timezone from current session! Fallback to UTC.");
+        elog(WARNING, "Can't get timezone from current session! Fallback to UTC.2");
         ical_tz = icaltimezone_get_utc_timezone();
     }
 
@@ -182,7 +182,7 @@ Datum pg_rrule_get_untiltz_rrule(PG_FUNCTION_ARGS) {
     }
 
     if (ical_tz == NULL) {
-        elog(WARNING, "Can't get timezone from current session! Fallback to UTC.");
+        elog(WARNING, "Can't get timezone from current session! Fallback to UTC.3");
         ical_tz = icaltimezone_get_utc_timezone();
     }
 
