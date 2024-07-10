@@ -98,6 +98,11 @@ Datum pg_rrule_get_occurrences_dtstart_until_tz(PG_FUNCTION_ARGS) {
         ical_tz = icaltimezone_get_builtin_timezone_from_offset(gmtoff, pg_get_timezone_name(session_timezone));
     }
 
+    elog(WARNING, "session_timezone value=%s", session_timezone);
+    elog(WARNING, "gmtoff value=%ld", gmtoff);
+    elog(WARNING, "ical_tz value=%p", (void*)ical_tz);
+
+
     if (ical_tz == NULL) {
         elog(WARNING, "Can't get timezone from current session! Fallback to UTC.2");
         ical_tz = icaltimezone_get_utc_timezone();
