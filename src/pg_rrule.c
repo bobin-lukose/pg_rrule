@@ -139,6 +139,7 @@ Datum pg_rrule_get_occurrences_dtstart_until_tz(PG_FUNCTION_ARGS) {
 
     long int gmtoff = 0;
     icaltimezone* ical_tz = NULL;
+    const char* timezone_name = NULL;
 
     // Log session timezone before calling pg_get_timezone_offset
     elog(WARNING, "Before calling pg_get_timezone_offset, session_timezone value=%s", session_timezone);
@@ -147,21 +148,33 @@ Datum pg_rrule_get_occurrences_dtstart_until_tz(PG_FUNCTION_ARGS) {
     bool tz_offset_result = pg_get_timezone_offset(session_timezone, &gmtoff);
     elog(WARNING, "pg_get_timezone_offset result=%d, gmtoff=%ld", tz_offset_result, gmtoff);
 
-    if (!tz_offset_result) {
+    if (tz_offset_result) {
+        timezone_name = pg_get_timezone_name(session_timezone);
+    } else {
         // Log the failure and provide a fallback
         elog(WARNING, "pg_get_timezone_offset failed for timezone=%s. Using fallback offset for Asia/Calcutta.", session_timezone);
         if (strcmp(session_timezone, "Asia/Calcutta") == 0) {
             gmtoff = 19800; // 5 hours and 30 minutes in seconds
+            timezone_name = "Asia/Calcutta";
         } else {
             // Provide a general fallback or handle other specific timezones
-            elog(WARNING, "Unknown timezone. Defaulting gmtoff to 0.");
+            elog(WARNING, "Unknown timezone. Defaulting gmtoff to 0 and timezone_name to UTC.");
             gmtoff = 0;
+            timezone_name = "UTC";
         }
     }
 
+    elog(WARNING, "Using timezone name=%s, gmtoff=%ld", timezone_name, gmtoff);
+
     // Call icaltimezone_get_builtin_timezone_from_offset and log the result
-    ical_tz = icaltimezone_get_builtin_timezone_from_offset(gmtoff, pg_get_timezone_name(session_timezone));
+    ical_tz = icaltimezone_get_builtin_timezone_from_offset(gmtoff, timezone_name);
     elog(WARNING, "icaltimezone_get_builtin_timezone_from_offset result=%p", (void*)ical_tz);
+
+    if (ical_tz == NULL) {
+        elog(WARNING, "Fallback to icaltimezone_get_builtin_timezone with name=%s.", timezone_name);
+        ical_tz = icaltimezone_get_builtin_timezone(timezone_name);
+        elog(WARNING, "icaltimezone_get_builtin_timezone result=%p", (void*)ical_tz);
+    }
 
     if (ical_tz == NULL) {
         elog(WARNING, "Can't get timezone from current session! Fallback to UTC.");
@@ -176,6 +189,7 @@ Datum pg_rrule_get_occurrences_dtstart_until_tz(PG_FUNCTION_ARGS) {
 
     return pg_rrule_get_occurrences_rrule_until(*recurrence_ref, dtstart, until, true);
 }
+
 
 
 
