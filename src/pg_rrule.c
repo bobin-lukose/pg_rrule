@@ -94,6 +94,20 @@ Datum pg_rrule_get_occurrences_dtstart_until_tz(PG_FUNCTION_ARGS) {
 
     long int gmtoff = 0;
     icaltimezone* ical_tz = NULL;
+
+    // Log session timezone before calling pg_get_timezone_offset
+    elog(WARNING, "Before calling pg_get_timezone_offset, session_timezone value=%s", session_timezone);
+
+    // Call pg_get_timezone_offset and log the result
+    bool tz_offset_result = pg_get_timezone_offset(session_timezone, &gmtoff);
+    elog(WARNING, "pg_get_timezone_offset result=%d, gmtoff=%ld", tz_offset_result, gmtoff);
+
+    if (tz_offset_result) {
+        // Call icaltimezone_get_builtin_timezone_from_offset and log the result
+        ical_tz = icaltimezone_get_builtin_timezone_from_offset(gmtoff, pg_get_timezone_name(session_timezone));
+        elog(WARNING, "icaltimezone_get_builtin_timezone_from_offset result=%p", (void*)ical_tz);
+    }
+
     if (pg_get_timezone_offset(session_timezone, &gmtoff)) {
         ical_tz = icaltimezone_get_builtin_timezone_from_offset(gmtoff, pg_get_timezone_name(session_timezone));
     }
