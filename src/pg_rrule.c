@@ -276,7 +276,7 @@ Datum pg_rrule_get_occurrences_dtstart_until_tz(PG_FUNCTION_ARGS) {
 
     // Fallback to using timezone name directly if the offset method fails or if gmtoff is 0
     if (ical_tz == NULL || gmtoff == 0) {
-        elog(WARNING, "Fallback to icaltimezone_get_builtin_timezone with name=%s.", timezone_name);
+        elog(WARNING, "Fallback to icaltimezone_get_builtin_timezone with namebbb=%s.", timezone_name);
         ical_tz = icaltimezone_get_builtin_timezone(timezone_name);
         elog(WARNING, "icaltimezone_get_builtin_timezone result=%p", (void*)ical_tz);
     }
