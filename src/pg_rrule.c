@@ -125,7 +125,7 @@ Datum pg_rrule_get_occurrences_dtstart(PG_FUNCTION_ARGS) {
 }
 
 
-Datum pg_rrule_get_occurrences_dtstart_until(PG_FUNCTION_ARGS) {
+Datum pg_rrule_get_occurrences_dtstart_until_bkup(PG_FUNCTION_ARGS) {
     struct icalrecurrencetype* recurrence_ref = (struct icalrecurrencetype*)PG_GETARG_POINTER(0);
     Timestamp dtstart_ts = PG_GETARG_TIMESTAMP(1);
     Timestamp until_ts = PG_GETARG_TIMESTAMPTZ(2);
@@ -138,6 +138,33 @@ Datum pg_rrule_get_occurrences_dtstart_until(PG_FUNCTION_ARGS) {
 
     return pg_rrule_get_occurrences_rrule_until(*recurrence_ref, dtstart, until, false);
 }
+
+
+
+Datum pg_rrule_get_occurrences_dtstart_until(PG_FUNCTION_ARGS) {
+    struct icalrecurrencetype* recurrence_ref = (struct icalrecurrencetype*)PG_GETARG_POINTER(0);
+    Timestamp dtstart_ts = PG_GETARG_TIMESTAMP(1);
+    Timestamp until_ts = PG_GETARG_TIMESTAMPTZ(2);
+
+    pg_time_t dtstart_ts_pg_time_t = timestamptz_to_time_t(dtstart_ts);
+    pg_time_t until_ts_pg_time_t = timestamptz_to_time_t(until_ts);
+
+    struct icaltimetype dtstart = icaltime_from_timet_with_zone((time_t)dtstart_ts_pg_time_t, 0, icaltimezone_get_utc_timezone()); // it's safe ? time_t may be double, float, etc...
+    struct icaltimetype until = icaltime_from_timet_with_zone((time_t)until_ts_pg_time_t, 0, icaltimezone_get_utc_timezone()); // it's safe ? time_t may be double, float, etc...
+
+    // Logging the inputs and converted values
+    elog(LOG, "pg_rrule_get_occurrences_dtstart_until: dtstart_ts = %s", timestamptz_to_str(dtstart_ts));
+    elog(LOG, "pg_rrule_get_occurrences_dtstart_until: until_ts = %s", timestamptz_to_str(until_ts));
+    elog(LOG, "pg_rrule_get_occurrences_dtstart_until: dtstart_ts_pg_time_t = %ld", (long)dtstart_ts_pg_time_t);
+    elog(LOG, "pg_rrule_get_occurrences_dtstart_until: until_ts_pg_time_t = %ld", (long)until_ts_pg_time_t);
+    elog(LOG, "pg_rrule_get_occurrences_dtstart_until: dtstart = %s", icaltime_as_ical_string(dtstart));
+    elog(LOG, "pg_rrule_get_occurrences_dtstart_until: until = %s", icaltime_as_ical_string(until));
+
+
+    return pg_rrule_get_occurrences_rrule_until(*recurrence_ref, dtstart, until, false);
+}
+
+
 
 /* FREQ */
 Datum pg_rrule_get_freq_rrule(PG_FUNCTION_ARGS) {
