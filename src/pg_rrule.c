@@ -191,7 +191,7 @@ Datum pg_rrule_get_occurrences_dtstart_until_tz_bkup2(PG_FUNCTION_ARGS) {
 }
 
 
-Datum pg_rrule_get_occurrences_dtstart_until_tz(PG_FUNCTION_ARGS) {
+Datum pg_rrule_get_occurrences_dtstart_until_tz_bkup3(PG_FUNCTION_ARGS) {
     struct icalrecurrencetype* recurrence_ref = (struct icalrecurrencetype*)PG_GETARG_POINTER(0);
     TimestampTz dtstart_ts = PG_GETARG_TIMESTAMPTZ(1);
     TimestampTz until_ts = PG_GETARG_TIMESTAMPTZ(2);
@@ -244,6 +244,59 @@ Datum pg_rrule_get_occurrences_dtstart_until_tz(PG_FUNCTION_ARGS) {
 
     return pg_rrule_get_occurrences_rrule_until(*recurrence_ref, dtstart, until, true);
 }
+
+
+Datum pg_rrule_get_occurrences_dtstart_until_tz(PG_FUNCTION_ARGS) {
+    struct icalrecurrencetype* recurrence_ref = (struct icalrecurrencetype*)PG_GETARG_POINTER(0);
+    TimestampTz dtstart_ts = PG_GETARG_TIMESTAMPTZ(1);
+    TimestampTz until_ts = PG_GETARG_TIMESTAMPTZ(2);
+
+    long int gmtoff = 0;
+    icaltimezone* ical_tz = NULL;
+    const char* timezone_name = session_timezone;
+
+    // Log session timezone before calling pg_get_timezone_offset
+    elog(WARNING, "Before calling pg_get_timezone_offset, session_timezone value=%s", session_timezone);
+
+    // Call pg_get_timezone_offset and log the result
+    bool tz_offset_result = pg_get_timezone_offset(session_timezone, &gmtoff);
+    elog(WARNING, "pg_get_timezone_offset result=%d, gmtoff=%ld", tz_offset_result, gmtoff);
+
+    if (!tz_offset_result) {
+        elog(WARNING, "pg_get_timezone_offset failed for timezone=%s.", session_timezone);
+    }
+
+    elog(WARNING, "Using timezone name=%s, gmtoff=%ld", timezone_name, gmtoff);
+
+    // Try getting the timezone from offset if the offset result was successful
+    if (tz_offset_result) {
+        ical_tz = icaltimezone_get_builtin_timezone_from_offset(gmtoff, timezone_name);
+        elog(WARNING, "icaltimezone_get_builtin_timezone_from_offset result=%p", (void*)ical_tz);
+    }
+
+    // Fallback to using timezone name directly if the offset method fails or if gmtoff is 0
+    if (ical_tz == NULL || gmtoff == 0) {
+        elog(WARNING, "Fallback to icaltimezone_get_builtin_timezone with name=%s.", timezone_name);
+        ical_tz = icaltimezone_get_builtin_timezone(timezone_name);
+        elog(WARNING, "icaltimezone_get_builtin_timezone result=%p", (void*)ical_tz);
+    }
+
+    // If still NULL, fallback to UTC
+    if (ical_tz == NULL) {
+        elog(WARNING, "Can't get timezone from current session! Fallback to UTC.");
+        ical_tz = icaltimezone_get_utc_timezone();
+    }
+
+    pg_time_t dtstart_ts_pg_time_t = timestamptz_to_time_t(dtstart_ts);
+    pg_time_t until_ts_pg_time_t = timestamptz_to_time_t(until_ts);
+
+    struct icaltimetype dtstart = icaltime_from_timet_with_zone((time_t)dtstart_ts_pg_time_t, 0, ical_tz);
+    struct icaltimetype until = icaltime_from_timet_with_zone((time_t)until_ts_pg_time_t, 0, ical_tz);
+
+    return pg_rrule_get_occurrences_rrule_until(*recurrence_ref, dtstart, until, true);
+}
+
+
 
 
 
