@@ -174,6 +174,7 @@ Datum pg_rrule_get_occurrences_dtstart_until(PG_FUNCTION_ARGS) {
 }
 
 
+
 /* FREQ */
 Datum pg_rrule_get_freq_rrule(PG_FUNCTION_ARGS) {
     struct icalrecurrencetype* recurrence_ref = (struct icalrecurrencetype*)PG_GETARG_POINTER(0);
