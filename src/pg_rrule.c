@@ -331,15 +331,47 @@ Datum pg_rrule_get_occurrences_dtstart_until_BKUP(PG_FUNCTION_ARGS) {
 
 
 Datum pg_rrule_get_occurrences_dtstart_until(PG_FUNCTION_ARGS) {
-    // Retrieve arguments
     struct icalrecurrencetype* recurrence_ref = (struct icalrecurrencetype*)PG_GETARG_POINTER(0);
-    Timestamp dtstart_ts = PG_GETARG_TIMESTAMP(1);
-    Timestamp until_ts = PG_GETARG_TIMESTAMPTZ(2);
+    TimestampTz dtstart_ts = PG_GETARG_TIMESTAMPTZ(1);
+    TimestampTz until_ts = PG_GETARG_TIMESTAMPTZ(2);
 
-    // Log input arguments
-    elog(WARNING, "Recurrence reference pointer=%p", (void*)recurrence_ref);
-    elog(WARNING, "dtstart_ts=%lld", (long long)dtstart_ts);
-    elog(WARNING, "until_ts=%lld", (long long)until_ts);
+    long int gmtoff = 0;
+    icaltimezone* ical_tz = NULL;
+    const char* timezone_name = session_timezone;
+
+    // Log session timezone before calling pg_get_timezone_offset
+    elog(WARNING, "Before calling pg_get_timezone_offset, session_timezone value=%s", session_timezone);
+
+    // Call pg_get_timezone_offset and log the result
+    bool tz_offset_result = pg_get_timezone_offset(session_timezone, &gmtoff);
+    elog(WARNING, "pg_get_timezone_offset result=%d, gmtoff=%ld", tz_offset_result, gmtoff);
+
+    if (!tz_offset_result || gmtoff == 0) {
+        elog(WARNING, "pg_get_timezone_offset failed or returned zero for timezone=%s. Using fallback offset for timezone name=%s.", session_timezone, timezone_name);
+        gmtoff = icaltimezone_get_utc_offset(icaltimezone_get_builtin_timezone(timezone_name));
+        elog(WARNING, "Fallback offset for timezone=%s, gmtoff=%ld", timezone_name, gmtoff);
+    }
+
+    elog(WARNING, "Using timezone name=%s, gmtoff=%ld", timezone_name, gmtoff);
+
+    // Try getting the timezone from offset if gmtoff is not zero
+    if (gmtoff != 0) {
+        ical_tz = icaltimezone_get_builtin_timezone_from_offset(gmtoff, timezone_name);
+        elog(WARNING, "icaltimezone_get_builtin_timezone_from_offset result=%p", (void*)ical_tz);
+    }
+
+    // Fallback to using timezone name directly if the offset method fails or if gmtoff is 0
+    if (ical_tz == NULL) {
+        elog(WARNING, "Fallback to icaltimezone_get_builtin_timezone with name=%s.", timezone_name);
+        ical_tz = icaltimezone_get_builtin_timezone(timezone_name);
+        elog(WARNING, "icaltimezone_get_builtin_timezone result=%p", (void*)ical_tz);
+    }
+
+    // If still NULL, fallback to UTC
+    if (ical_tz == NULL) {
+        elog(WARNING, "Can't get timezone from current session! Fallback to UTC.");
+        ical_tz = icaltimezone_get_utc_timezone();
+    }
 
     // Convert timestamps
     pg_time_t dtstart_ts_pg_time_t = timestamptz_to_time_t(dtstart_ts);
@@ -349,9 +381,9 @@ Datum pg_rrule_get_occurrences_dtstart_until(PG_FUNCTION_ARGS) {
     elog(WARNING, "Converted dtstart_ts to pg_time_t=%lld", (long long)dtstart_ts_pg_time_t);
     elog(WARNING, "Converted until_ts to pg_time_t=%lld", (long long)until_ts_pg_time_t);
 
-    // Convert to icaltimetype
-    struct icaltimetype dtstart = icaltime_from_timet_with_zone((time_t)dtstart_ts_pg_time_t, 0, icaltimezone_get_utc_timezone());
-    struct icaltimetype until = icaltime_from_timet_with_zone((time_t)until_ts_pg_time_t, 0, icaltimezone_get_utc_timezone());
+    // Convert to icaltimetype with correct timezone
+    struct icaltimetype dtstart = icaltime_from_timet_with_zone((time_t)dtstart_ts_pg_time_t, 0, ical_tz);
+    struct icaltimetype until = icaltime_from_timet_with_zone((time_t)until_ts_pg_time_t, 0, ical_tz);
 
     // Log icaltimetype values
     elog(WARNING, "Converted dtstart to icaltimetype: year=%d, month=%d, day=%d, hour=%d, minute=%d, second=%d",
@@ -367,6 +399,7 @@ Datum pg_rrule_get_occurrences_dtstart_until(PG_FUNCTION_ARGS) {
 
     return result;
 }
+
 
 
 
