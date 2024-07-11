@@ -268,15 +268,15 @@ Datum pg_rrule_get_occurrences_dtstart_until_tz(PG_FUNCTION_ARGS) {
 
     elog(WARNING, "Using timezone name=%s, gmtoff=%ld", timezone_name, gmtoff);
 
-    // Try getting the timezone from offset if the offset result was successful
-    if (tz_offset_result) {
+    // Try getting the timezone from offset if the offset result was successful and gmtoff is not zero
+    if (tz_offset_result && gmtoff != 0) {
         ical_tz = icaltimezone_get_builtin_timezone_from_offset(gmtoff, timezone_name);
-        elog(WARNING, "icaltimezone_get_builtin_timezone_from_offset result=%p", (void*)ical_tz);
+        elog(WARNING, "icaltimezone_get_builtin_timezone_from_offset resultCCC=%p", (void*)ical_tz);
     }
 
     // Fallback to using timezone name directly if the offset method fails or if gmtoff is 0
-    if (ical_tz == NULL || gmtoff == 0) {
-        elog(WARNING, "Fallback to icaltimezone_get_builtin_timezone with namebbb=%s.", timezone_name);
+    if (ical_tz == NULL) {
+        elog(WARNING, "Fallback to icaltimezone_get_builtin_timezone with name=%s.", timezone_name);
         ical_tz = icaltimezone_get_builtin_timezone(timezone_name);
         elog(WARNING, "icaltimezone_get_builtin_timezone result=%p", (void*)ical_tz);
     }
@@ -295,6 +295,7 @@ Datum pg_rrule_get_occurrences_dtstart_until_tz(PG_FUNCTION_ARGS) {
 
     return pg_rrule_get_occurrences_rrule_until(*recurrence_ref, dtstart, until, true);
 }
+
 
 
 
