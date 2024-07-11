@@ -315,7 +315,7 @@ Datum pg_rrule_get_occurrences_dtstart(PG_FUNCTION_ARGS) {
 }
 
 
-Datum pg_rrule_get_occurrences_dtstart_until(PG_FUNCTION_ARGS) {
+Datum pg_rrule_get_occurrences_dtstart_until_BKUP(PG_FUNCTION_ARGS) {
     struct icalrecurrencetype* recurrence_ref = (struct icalrecurrencetype*)PG_GETARG_POINTER(0);
     Timestamp dtstart_ts = PG_GETARG_TIMESTAMP(1);
     Timestamp until_ts = PG_GETARG_TIMESTAMPTZ(2);
@@ -328,6 +328,47 @@ Datum pg_rrule_get_occurrences_dtstart_until(PG_FUNCTION_ARGS) {
 
     return pg_rrule_get_occurrences_rrule_until(*recurrence_ref, dtstart, until, false);
 }
+
+
+Datum pg_rrule_get_occurrences_dtstart_until(PG_FUNCTION_ARGS) {
+    // Retrieve arguments
+    struct icalrecurrencetype* recurrence_ref = (struct icalrecurrencetype*)PG_GETARG_POINTER(0);
+    Timestamp dtstart_ts = PG_GETARG_TIMESTAMP(1);
+    Timestamp until_ts = PG_GETARG_TIMESTAMPTZ(2);
+
+    // Log input arguments
+    elog(WARNING, "Recurrence reference pointer=%p", (void*)recurrence_ref);
+    elog(WARNING, "dtstart_ts=%lld", (long long)dtstart_ts);
+    elog(WARNING, "until_ts=%lld", (long long)until_ts);
+
+    // Convert timestamps
+    pg_time_t dtstart_ts_pg_time_t = timestamptz_to_time_t(dtstart_ts);
+    pg_time_t until_ts_pg_time_t = timestamptz_to_time_t(until_ts);
+
+    // Log converted times
+    elog(WARNING, "Converted dtstart_ts to pg_time_t=%lld", (long long)dtstart_ts_pg_time_t);
+    elog(WARNING, "Converted until_ts to pg_time_t=%lld", (long long)until_ts_pg_time_t);
+
+    // Convert to icaltimetype
+    struct icaltimetype dtstart = icaltime_from_timet_with_zone((time_t)dtstart_ts_pg_time_t, 0, icaltimezone_get_utc_timezone());
+    struct icaltimetype until = icaltime_from_timet_with_zone((time_t)until_ts_pg_time_t, 0, icaltimezone_get_utc_timezone());
+
+    // Log icaltimetype values
+    elog(WARNING, "Converted dtstart to icaltimetype: year=%d, month=%d, day=%d, hour=%d, minute=%d, second=%d",
+         dtstart.year, dtstart.month, dtstart.day, dtstart.hour, dtstart.minute, dtstart.second);
+    elog(WARNING, "Converted until to icaltimetype: year=%d, month=%d, day=%d, hour=%d, minute=%d, second=%d",
+         until.year, until.month, until.day, until.hour, until.minute, until.second);
+
+    // Get occurrences
+    Datum result = pg_rrule_get_occurrences_rrule_until(*recurrence_ref, dtstart, until, false);
+
+    // Log result
+    elog(WARNING, "pg_rrule_get_occurrences_rrule_until result=%d", DatumGetInt32(result));
+
+    return result;
+}
+
+
 
 /* FREQ */
 Datum pg_rrule_get_freq_rrule(PG_FUNCTION_ARGS) {
