@@ -128,7 +128,7 @@ Datum pg_rrule_get_occurrences_dtstart(PG_FUNCTION_ARGS) {
 }
 
 
-Datum pg_rrule_get_occurrences_dtstart_until(PG_FUNCTION_ARGS) {
+Datum pg_rrule_get_occurrences_dtstart_until_bkup(PG_FUNCTION_ARGS) {
     elog(WARNING, "Function 4");
     struct icalrecurrencetype* recurrence_ref = (struct icalrecurrencetype*)PG_GETARG_POINTER(0);
     Timestamp dtstart_ts = PG_GETARG_TIMESTAMP(1);
@@ -142,6 +142,37 @@ Datum pg_rrule_get_occurrences_dtstart_until(PG_FUNCTION_ARGS) {
 
     return pg_rrule_get_occurrences_rrule_until(*recurrence_ref, dtstart, until, false);
 }
+
+Datum pg_rrule_get_occurrences_dtstart_until(PG_FUNCTION_ARGS) {
+    elog(WARNING, "Entering pg_rrule_get_occurrences_dtstart_until");
+
+    // Get the function arguments
+    struct icalrecurrencetype* recurrence_ref = (struct icalrecurrencetype*)PG_GETARG_POINTER(0);
+    Timestamp dtstart_ts = PG_GETARG_TIMESTAMP(1);
+    Timestamp until_ts = PG_GETARG_TIMESTAMPTZ(2);
+
+    elog(WARNING, "Arguments received: dtstart_ts = %ld, until_ts = %ld", dtstart_ts, until_ts);
+
+    // Convert the timestamps to pg_time_t
+    pg_time_t dtstart_ts_pg_time_t = timestamptz_to_time_t(dtstart_ts);
+    pg_time_t until_ts_pg_time_t = timestamptz_to_time_t(until_ts);
+
+    elog(WARNING, "Converted timestamps to pg_time_t: dtstart_ts_pg_time_t = %ld, until_ts_pg_time_t = %ld", dtstart_ts_pg_time_t, until_ts_pg_time_t);
+
+    // Convert to icaltimetype with UTC timezone
+    struct icaltimetype dtstart = icaltime_from_timet_with_zone((time_t)dtstart_ts_pg_time_t, 0, icaltimezone_get_utc_timezone());
+    struct icaltimetype until = icaltime_from_timet_with_zone((time_t)until_ts_pg_time_t, 0, icaltimezone_get_utc_timezone());
+
+    elog(WARNING, "Converted to icaltimetype: dtstart = %s, until = %s", icaltime_as_ical_string(dtstart), icaltime_as_ical_string(until));
+
+    // Call the function to get occurrences
+    Datum result = pg_rrule_get_occurrences_rrule_until(*recurrence_ref, dtstart, until, false);
+
+    elog(WARNING, "Exiting pg_rrule_get_occurrences_dtstart_until");
+
+    return result;
+}
+
 
 /* FREQ */
 Datum pg_rrule_get_freq_rrule(PG_FUNCTION_ARGS) {
