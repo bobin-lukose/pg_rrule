@@ -155,15 +155,17 @@ Datum pg_rrule_get_occurrences_dtstart_until(PG_FUNCTION_ARGS) {
 
     // Convert the timestamps to pg_time_t
     pg_time_t dtstart_ts_pg_time_t = timestamptz_to_time_t(dtstart_ts);
-    pg_time_t until_ts_pg_time_t = timestamptz_to_time_t(until_ts);
+    elog(WARNING, "After dtstart_ts to pg_time_t conversion: dtstart_ts_pg_time_t = %ld", dtstart_ts_pg_time_t);
 
-    elog(WARNING, "Converted timestamps to pg_time_t: dtstart_ts_pg_time_t = %ld, until_ts_pg_time_t = %ld", dtstart_ts_pg_time_t, until_ts_pg_time_t);
+    pg_time_t until_ts_pg_time_t = timestamptz_to_time_t(until_ts);
+    elog(WARNING, "After until_ts to pg_time_t conversion: until_ts_pg_time_t = %ld", until_ts_pg_time_t);
 
     // Convert to icaltimetype with UTC timezone
     struct icaltimetype dtstart = icaltime_from_timet_with_zone((time_t)dtstart_ts_pg_time_t, 0, icaltimezone_get_utc_timezone());
-    struct icaltimetype until = icaltime_from_timet_with_zone((time_t)until_ts_pg_time_t, 0, icaltimezone_get_utc_timezone());
+    elog(WARNING, "After converting dtstart to icaltimetype: dtstart = %s", icaltime_as_ical_string(dtstart));
 
-    elog(WARNING, "Converted to icaltimetype: dtstart = %s, until = %s", icaltime_as_ical_string(dtstart), icaltime_as_ical_string(until));
+    struct icaltimetype until = icaltime_from_timet_with_zone((time_t)until_ts_pg_time_t, 0, icaltimezone_get_utc_timezone());
+    elog(WARNING, "After converting until to icaltimetype: until = %s", icaltime_as_ical_string(until));
 
     // Call the function to get occurrences
     Datum result = pg_rrule_get_occurrences_rrule_until(*recurrence_ref, dtstart, until, false);
@@ -172,6 +174,7 @@ Datum pg_rrule_get_occurrences_dtstart_until(PG_FUNCTION_ARGS) {
 
     return result;
 }
+
 
 
 
