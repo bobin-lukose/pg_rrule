@@ -497,13 +497,22 @@ Datum pg_rrule_get_occurrences_rrule_until(struct icalrecurrencetype recurrence,
     time_t* times_array = NULL;
     unsigned int cnt = 0;
 
+    elog(WARNING, "Entering pg_rrule_get_occurrences_rrule_until");
+    
+    // Generate occurrences
     pg_rrule_rrule_to_time_t_array_until(recurrence, dtstart, until, &times_array, &cnt);
+    
+    elog(WARNING, "Generated occurrences count: %u", cnt);
+    for (unsigned int j = 0; j < cnt; j++) {
+        elog(WARNING, "Occurrence %u: time_t = %ld", j, times_array[j]);
+    }
+
     pg_time_t* pg_times_array = palloc(sizeof(pg_time_t) * cnt);
 
     unsigned int i;
-
     for (i = 0; i < cnt; ++i) {
-        pg_times_array[i] = (pg_time_t)times_array[i]; // it's safe ? time_t may be double, float, etc...
+        pg_times_array[i] = (pg_time_t)times_array[i];
+        elog(WARNING, "Converted to pg_time_t: %ld", pg_times_array[i]);
     }
 
     free(times_array);
@@ -513,10 +522,12 @@ Datum pg_rrule_get_occurrences_rrule_until(struct icalrecurrencetype recurrence,
     if (use_tz) {
         for (i = 0; i < cnt; ++i) {
             datum_elems[i] = TimestampTzGetDatum(time_t_to_timestamptz(pg_times_array[i]));
+            elog(WARNING, "TimestampTz occurrence %u: %ld", i, pg_times_array[i]);
         }
     } else {
         for (i = 0; i < cnt; ++i) {
             datum_elems[i] = TimestampGetDatum(time_t_to_timestamptz(pg_times_array[i]));
+            elog(WARNING, "Timestamp occurrence %u: %ld", i, pg_times_array[i]);
         }
     }
 
@@ -527,11 +538,12 @@ Datum pg_rrule_get_occurrences_rrule_until(struct icalrecurrencetype recurrence,
     char typalign;
 
     const Oid ts_oid = use_tz ? TIMESTAMPTZOID : TIMESTAMPOID;
-
     get_typlenbyvalalign(ts_oid, &typlen, &typbyval, &typalign);
 
     ArrayType* result_array = construct_array(datum_elems, cnt, ts_oid, typlen, typbyval, typalign);
-
+    
+    elog(WARNING, "Exiting pg_rrule_get_occurrences_rrule_until");
+    
     PG_RETURN_ARRAYTYPE_P(result_array);
 }
 
