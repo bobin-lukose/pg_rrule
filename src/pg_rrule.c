@@ -514,59 +514,56 @@ void pg_rrule_rrule_to_time_t_array_until(struct icalrecurrencetype recurrence,
                                           time_t** const out_array,
                                           unsigned int* const out_count) {
 
-    printf("Entering pg_rrule_rrule_to_time_t_array_until\n");
-    fflush(stdout);  // Flush output
+    elog(WARNING, "Entering pg_rrule_rrule_to_time_t_array_until");
 
     icalrecur_iterator* const recur_iterator = icalrecur_iterator_new(recurrence, dtstart);
+    elog(WARNING, "Created recurrence iterator");
+
     icalarray* const icaltimes_list = icalarray_new(sizeof(icaltimetype), 32);
-    
+    elog(WARNING, "Initialized icaltimes_list");
+
     struct icaltimetype ical_time = icalrecur_iterator_next(recur_iterator);
-    printf("Initial dtstart: %s\n", icaltime_as_ical_string(dtstart));
-    fflush(stdout);  // Flush output
+    elog(WARNING, "Initial dtstart: %s", icaltime_as_ical_string(dtstart));
 
     if (icaltime_is_null_time(until)) {
-        printf("Until is null; generating occurrences without limit\n");
-        fflush(stdout);  // Flush output
+        elog(WARNING, "Until is null; generating occurrences without limit");
         while (icaltime_is_null_time(ical_time) == false) {
             icalarray_append(icaltimes_list, &ical_time);
-            printf("Generated occurrence: %s\n", icaltime_as_ical_string(ical_time));
-            fflush(stdout);  // Flush output
+            elog(WARNING, "Generated occurrence: %s", icaltime_as_ical_string(ical_time));
             ical_time = icalrecur_iterator_next(recur_iterator);
         }
     } else {
-        printf("Until time: %s\n", icaltime_as_ical_string(until));
-        fflush(stdout);  // Flush output
+        elog(WARNING, "Until time: %s", icaltime_as_ical_string(until));
         while (icaltime_is_null_time(ical_time) == false
                && icaltime_compare(ical_time, until) != 1) { // while ical_time <= until
             icalarray_append(icaltimes_list, &ical_time);
-            printf("Generated occurrence: %s\n", icaltime_as_ical_string(ical_time));
-            fflush(stdout);  // Flush output
+            elog(WARNING, "Generated occurrence: %s", icaltime_as_ical_string(ical_time));
             ical_time = icalrecur_iterator_next(recur_iterator);
         }
     }
 
     icalrecur_iterator_free(recur_iterator);
+    elog(WARNING, "Freed recurrence iterator");
 
     const unsigned int cnt = (*out_count) = icaltimes_list->num_elements;
-    printf("Occurrences generated: %u\n", cnt);
-    fflush(stdout);  // Flush output
+    elog(WARNING, "Occurrences generated: %u", cnt);
 
     time_t* times_array = (*out_array) = malloc(sizeof(time_t) * cnt);
+    elog(WARNING, "Allocated memory for times_array");
 
     unsigned int i = 0;
 
     for (i = 0; i < cnt; ++i) {
         ical_time = (*(icaltimetype*)icalarray_element_at(icaltimes_list, i));
-        printf("Initial ical_time for occurrence %u: %s\n", i, icaltime_as_ical_string(ical_time));
-        fflush(stdout);  // Flush output
-        
+        elog(WARNING, "Initial ical_time for occurrence %u: %s", i, icaltime_as_ical_string(ical_time));
+
         times_array[i] = icaltime_as_timet_with_zone(ical_time, dtstart.zone);
-        printf("Occurrence %u: %s -> time_t = %ld\n", i, icaltime_as_ical_string(ical_time), times_array[i]);
-        fflush(stdout);  // Flush output
+        elog(WARNING, "Occurrence %u: %s -> time_t = %ld", i, icaltime_as_ical_string(ical_time), times_array[i]);
     }
 
     icalarray_free(icaltimes_list);
-    printf("Exiting pg_rrule_rrule_to_time_t_array_until\n");
-    fflush(stdout);  // Flush output
+    elog(WARNING, "Freed icaltimes_list");
+    elog(WARNING, "Exiting pg_rrule_rrule_to_time_t_array_until");
 }
+
 
