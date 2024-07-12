@@ -128,7 +128,7 @@ Datum pg_rrule_get_occurrences_dtstart(PG_FUNCTION_ARGS) {
 }
 
 
-Datum pg_rrule_get_occurrences_dtstart_until_bkup(PG_FUNCTION_ARGS) {
+Datum pg_rrule_get_occurrences_dtstart_until(PG_FUNCTION_ARGS) {
     elog(WARNING, "Function 4");
     struct icalrecurrencetype* recurrence_ref = (struct icalrecurrencetype*)PG_GETARG_POINTER(0);
     Timestamp dtstart_ts = PG_GETARG_TIMESTAMP(1);
@@ -142,41 +142,6 @@ Datum pg_rrule_get_occurrences_dtstart_until_bkup(PG_FUNCTION_ARGS) {
 
     return pg_rrule_get_occurrences_rrule_until(*recurrence_ref, dtstart, until, false);
 }
-
-Datum pg_rrule_get_occurrences_dtstart_until(PG_FUNCTION_ARGS) {
-    elog(WARNING, "Entering pg_rrule_get_occurrences_dtstart_until");
-
-    // Get the function arguments
-    struct icalrecurrencetype* recurrence_ref = (struct icalrecurrencetype*)PG_GETARG_POINTER(0);
-    Timestamp dtstart_ts = PG_GETARG_TIMESTAMP(1);
-    Timestamp until_ts = PG_GETARG_TIMESTAMPTZ(2);
-
-    elog(WARNING, "Arguments received: dtstart_ts = %ld, until_ts = %ld", dtstart_ts, until_ts);
-
-    // Convert the timestamps to pg_time_t
-    pg_time_t dtstart_ts_pg_time_t = timestamptz_to_time_t(dtstart_ts);
-    elog(WARNING, "After dtstart_ts to pg_time_t conversion: dtstart_ts_pg_time_t = %ld", dtstart_ts_pg_time_t);
-
-    pg_time_t until_ts_pg_time_t = timestamptz_to_time_t(until_ts);
-    elog(WARNING, "After until_ts to pg_time_t conversion: until_ts_pg_time_t = %ld", until_ts_pg_time_t);
-
-    // Convert to icaltimetype with UTC timezone
-    struct icaltimetype dtstart = icaltime_from_timet_with_zone((time_t)dtstart_ts_pg_time_t, 0, icaltimezone_get_utc_timezone());
-    elog(WARNING, "After converting dtstart to icaltimetype: dtstart = %s", icaltime_as_ical_string(dtstart));
-
-    struct icaltimetype until = icaltime_from_timet_with_zone((time_t)until_ts_pg_time_t, 0, icaltimezone_get_utc_timezone());
-    elog(WARNING, "After converting until to icaltimetype: until = %s", icaltime_as_ical_string(until));
-
-    // Call the function to get occurrences
-    Datum result = pg_rrule_get_occurrences_rrule_until(*recurrence_ref, dtstart, until, false);
-
-    elog(WARNING, "Exiting pg_rrule_get_occurrences_dtstart_until");
-
-    return result;
-}
-
-
-
 
 /* FREQ */
 Datum pg_rrule_get_freq_rrule(PG_FUNCTION_ARGS) {
@@ -497,22 +462,13 @@ Datum pg_rrule_get_occurrences_rrule_until(struct icalrecurrencetype recurrence,
     time_t* times_array = NULL;
     unsigned int cnt = 0;
 
-    elog(WARNING, "Entering pg_rrule_get_occurrences_rrule_until");
-    
-    // Generate occurrences
     pg_rrule_rrule_to_time_t_array_until(recurrence, dtstart, until, &times_array, &cnt);
-    
-    elog(WARNING, "Generated occurrences count: %u", cnt);
-    for (unsigned int j = 0; j < cnt; j++) {
-        elog(WARNING, "Occurrence %u: time_t = %ld", j, times_array[j]);
-    }
-
     pg_time_t* pg_times_array = palloc(sizeof(pg_time_t) * cnt);
 
     unsigned int i;
+
     for (i = 0; i < cnt; ++i) {
-        pg_times_array[i] = (pg_time_t)times_array[i];
-        elog(WARNING, "Converted to pg_time_t: %ld", pg_times_array[i]);
+        pg_times_array[i] = (pg_time_t)times_array[i]; // it's safe ? time_t may be double, float, etc...
     }
 
     free(times_array);
@@ -522,12 +478,10 @@ Datum pg_rrule_get_occurrences_rrule_until(struct icalrecurrencetype recurrence,
     if (use_tz) {
         for (i = 0; i < cnt; ++i) {
             datum_elems[i] = TimestampTzGetDatum(time_t_to_timestamptz(pg_times_array[i]));
-            elog(WARNING, "TimestampTz occurrence %u: %ld", i, pg_times_array[i]);
         }
     } else {
         for (i = 0; i < cnt; ++i) {
             datum_elems[i] = TimestampGetDatum(time_t_to_timestamptz(pg_times_array[i]));
-            elog(WARNING, "Timestamp occurrence %u: %ld", i, pg_times_array[i]);
         }
     }
 
@@ -538,12 +492,11 @@ Datum pg_rrule_get_occurrences_rrule_until(struct icalrecurrencetype recurrence,
     char typalign;
 
     const Oid ts_oid = use_tz ? TIMESTAMPTZOID : TIMESTAMPOID;
+
     get_typlenbyvalalign(ts_oid, &typlen, &typbyval, &typalign);
 
     ArrayType* result_array = construct_array(datum_elems, cnt, ts_oid, typlen, typbyval, typalign);
-    
-    elog(WARNING, "Exiting pg_rrule_get_occurrences_rrule_until");
-    
+
     PG_RETURN_ARRAYTYPE_P(result_array);
 }
 
@@ -561,25 +514,33 @@ void pg_rrule_rrule_to_time_t_array_until(struct icalrecurrencetype recurrence,
                                           time_t** const out_array,
                                           unsigned int* const out_count) {
 
-    elog(WARNING, "Entering pg_rrule_rrule_to_time_t_array_until");
+    printf("Entering pg_rrule_rrule_to_time_t_array_until\n");
+    fflush(stdout);  // Flush output
 
     icalrecur_iterator* const recur_iterator = icalrecur_iterator_new(recurrence, dtstart);
     icalarray* const icaltimes_list = icalarray_new(sizeof(icaltimetype), 32);
     
     struct icaltimetype ical_time = icalrecur_iterator_next(recur_iterator);
-    elog(WARNING, "Initial dtstart: %s", icaltime_as_ical_string(dtstart));
+    printf("Initial dtstart: %s\n", icaltime_as_ical_string(dtstart));
+    fflush(stdout);  // Flush output
 
     if (icaltime_is_null_time(until)) {
-        elog(WARNING, "Until is null; generating occurrences without limit");
+        printf("Until is null; generating occurrences without limit\n");
+        fflush(stdout);  // Flush output
         while (icaltime_is_null_time(ical_time) == false) {
             icalarray_append(icaltimes_list, &ical_time);
+            printf("Generated occurrence: %s\n", icaltime_as_ical_string(ical_time));
+            fflush(stdout);  // Flush output
             ical_time = icalrecur_iterator_next(recur_iterator);
         }
     } else {
-        elog(WARNING, "Until time: %s", icaltime_as_ical_string(until));
+        printf("Until time: %s\n", icaltime_as_ical_string(until));
+        fflush(stdout);  // Flush output
         while (icaltime_is_null_time(ical_time) == false
                && icaltime_compare(ical_time, until) != 1) { // while ical_time <= until
             icalarray_append(icaltimes_list, &ical_time);
+            printf("Generated occurrence: %s\n", icaltime_as_ical_string(ical_time));
+            fflush(stdout);  // Flush output
             ical_time = icalrecur_iterator_next(recur_iterator);
         }
     }
@@ -587,7 +548,8 @@ void pg_rrule_rrule_to_time_t_array_until(struct icalrecurrencetype recurrence,
     icalrecur_iterator_free(recur_iterator);
 
     const unsigned int cnt = (*out_count) = icaltimes_list->num_elements;
-    elog(WARNING, "Occurrences generated: %u", cnt);
+    printf("Occurrences generated: %u\n", cnt);
+    fflush(stdout);  // Flush output
 
     time_t* times_array = (*out_array) = malloc(sizeof(time_t) * cnt);
 
@@ -595,11 +557,16 @@ void pg_rrule_rrule_to_time_t_array_until(struct icalrecurrencetype recurrence,
 
     for (i = 0; i < cnt; ++i) {
         ical_time = (*(icaltimetype*)icalarray_element_at(icaltimes_list, i));
+        printf("Initial ical_time for occurrence %u: %s\n", i, icaltime_as_ical_string(ical_time));
+        fflush(stdout);  // Flush output
+        
         times_array[i] = icaltime_as_timet_with_zone(ical_time, dtstart.zone);
-        elog(WARNING, "Occurrence %u: %s -> time_t = %ld", i, icaltime_as_ical_string(ical_time), times_array[i]);
+        printf("Occurrence %u: %s -> time_t = %ld\n", i, icaltime_as_ical_string(ical_time), times_array[i]);
+        fflush(stdout);  // Flush output
     }
 
     icalarray_free(icaltimes_list);
-    elog(WARNING, "Exiting pg_rrule_rrule_to_time_t_array_until");
+    printf("Exiting pg_rrule_rrule_to_time_t_array_until\n");
+    fflush(stdout);  // Flush output
 }
 
