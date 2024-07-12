@@ -561,20 +561,24 @@ void pg_rrule_rrule_to_time_t_array_until(struct icalrecurrencetype recurrence,
                                           time_t** const out_array,
                                           unsigned int* const out_count) {
 
+    elog(WARNING, "Entering pg_rrule_rrule_to_time_t_array_until");
+
     icalrecur_iterator* const recur_iterator = icalrecur_iterator_new(recurrence, dtstart);
-
     icalarray* const icaltimes_list = icalarray_new(sizeof(icaltimetype), 32);
-
+    
     struct icaltimetype ical_time = icalrecur_iterator_next(recur_iterator);
+    elog(WARNING, "Initial dtstart: %s", icaltime_as_ical_string(dtstart));
 
     if (icaltime_is_null_time(until)) {
+        elog(WARNING, "Until is null; generating occurrences without limit");
         while (icaltime_is_null_time(ical_time) == false) {
             icalarray_append(icaltimes_list, &ical_time);
             ical_time = icalrecur_iterator_next(recur_iterator);
         }
     } else {
+        elog(WARNING, "Until time: %s", icaltime_as_ical_string(until));
         while (icaltime_is_null_time(ical_time) == false
-               && icaltime_compare(ical_time, until) != 1 ) { // while ical_time <= until
+               && icaltime_compare(ical_time, until) != 1) { // while ical_time <= until
             icalarray_append(icaltimes_list, &ical_time);
             ical_time = icalrecur_iterator_next(recur_iterator);
         }
@@ -583,6 +587,7 @@ void pg_rrule_rrule_to_time_t_array_until(struct icalrecurrencetype recurrence,
     icalrecur_iterator_free(recur_iterator);
 
     const unsigned int cnt = (*out_count) = icaltimes_list->num_elements;
+    elog(WARNING, "Occurrences generated: %u", cnt);
 
     time_t* times_array = (*out_array) = malloc(sizeof(time_t) * cnt);
 
@@ -591,7 +596,10 @@ void pg_rrule_rrule_to_time_t_array_until(struct icalrecurrencetype recurrence,
     for (i = 0; i < cnt; ++i) {
         ical_time = (*(icaltimetype*)icalarray_element_at(icaltimes_list, i));
         times_array[i] = icaltime_as_timet_with_zone(ical_time, dtstart.zone);
+        elog(WARNING, "Occurrence %u: %s -> time_t = %ld", i, icaltime_as_ical_string(ical_time), times_array[i]);
     }
 
     icalarray_free(icaltimes_list);
+    elog(WARNING, "Exiting pg_rrule_rrule_to_time_t_array_until");
 }
+
