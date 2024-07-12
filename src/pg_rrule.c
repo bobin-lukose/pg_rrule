@@ -542,6 +542,9 @@ void pg_rrule_rrule_to_time_t_array_until(struct icalrecurrencetype recurrence,
         }
     }
 
+        elog(WARNING, "BBB ical_time for occurrence %u: %s", i, icaltime_as_ical_string(ical_time));
+
+
     icalrecur_iterator_free(recur_iterator);
     elog(WARNING, "Freed recurrence iterator");
 
